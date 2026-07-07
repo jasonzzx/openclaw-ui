@@ -1,0 +1,14 @@
+{
+  "name": "@openclaw-ui/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "diff": "^7.0.0",
+    "express": "^4.21.2"
+  }
+}
