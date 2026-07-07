@@ -1,5 +1,8 @@
 import { execFile } from 'node:child_process';
 import net from 'node:net';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 let cachedVersion;
 
@@ -25,6 +28,41 @@ export function probePort(port, host = '127.0.0.1', timeoutMs = 1200) {
     sock.setTimeout(timeoutMs, () => done(false));
     sock.on('connect', () => done(true));
     sock.on('error', () => done(false));
+  });
+}
+
+// Checks a proposed config against OpenClaw's own validator without touching
+// the real file: writes it to a temp state dir and runs `openclaw config validate`.
+// Resolves { ok, output? } or null when the openclaw CLI is unavailable.
+export function validateConfig(serialized) {
+  return new Promise((resolve) => {
+    let dir;
+    try {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-ui-validate-'));
+      fs.writeFileSync(path.join(dir, 'openclaw.json'), serialized);
+    } catch {
+      return resolve(null);
+    }
+    execFile(
+      'openclaw',
+      ['config', 'validate'],
+      {
+        timeout: 30000,
+        env: {
+          ...process.env,
+          OPENCLAW_STATE_DIR: dir,
+          OPENCLAW_CONFIG_PATH: path.join(dir, 'openclaw.json'),
+        },
+      },
+      (err, stdout = '', stderr = '') => {
+        fs.rmSync(dir, { recursive: true, force: true });
+        if (err && err.code === 'ENOENT') return resolve(null);
+        // eslint-disable-next-line no-control-regex
+        const output = `${stdout}\n${stderr}`.replace(/\x1b\[[0-9;]*m/g, '').trim();
+        if (!err && /Config valid/i.test(output)) return resolve({ ok: true });
+        resolve({ ok: false, output: output.slice(0, 4000) });
+      }
+    );
   });
 }
 

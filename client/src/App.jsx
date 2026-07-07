@@ -3,6 +3,7 @@ import { getConfig, getStatus, previewConfig, applyConfig } from './api.js';
 import { Modal, DiffView, Toast, StatusPill } from './components/ui.jsx';
 import Overview from './pages/Overview.jsx';
 import Agents from './pages/Agents.jsx';
+import Channels from './pages/Channels.jsx';
 import Gateway from './pages/Gateway.jsx';
 import Plugins from './pages/Plugins.jsx';
 import Chat from './pages/Chat.jsx';
@@ -11,6 +12,7 @@ import Backups from './pages/Backups.jsx';
 const PAGES = [
   { id: 'overview', label: 'Overview', icon: '🦞' },
   { id: 'agents', label: 'Agents', icon: '🤖' },
+  { id: 'channels', label: 'Channels & Routing', icon: '✈️' },
   { id: 'gateway', label: 'Gateway & Session', icon: '🛰️' },
   { id: 'plugins', label: 'Plugins & Auth', icon: '🧩' },
   { id: 'chat', label: 'Chat Console', icon: '💬' },
@@ -73,6 +75,19 @@ export default function App() {
       (k) => JSON.stringify(saved[k]) !== JSON.stringify(draft[k])
     );
   }, [saved, draft]);
+
+  // The file can change under us (CLI, another tool). With no local edits, follow it
+  // silently; with edits pending, the mtime check on apply reports the conflict.
+  useEffect(() => {
+    if (
+      status?.mtimeMs &&
+      mtimeMs &&
+      Math.abs(status.mtimeMs - mtimeMs) > 1 &&
+      dirtySections.length === 0
+    ) {
+      loadConfig();
+    }
+  }, [status, mtimeMs, dirtySections, loadConfig]);
 
   const openReview = async () => {
     setReview('loading');
@@ -161,6 +176,7 @@ export default function App() {
         <div className="page">
           {page === 'overview' && <Overview {...pageProps} />}
           {page === 'agents' && <Agents {...pageProps} />}
+          {page === 'channels' && <Channels {...pageProps} />}
           {page === 'gateway' && <Gateway {...pageProps} />}
           {page === 'plugins' && <Plugins {...pageProps} />}
           {page === 'chat' && <Chat {...pageProps} />}
@@ -195,7 +211,12 @@ export default function App() {
               </button>
               <button
                 className="btn primary"
-                disabled={applying || review === 'loading' || !review.changed}
+                disabled={
+                  applying ||
+                  review === 'loading' ||
+                  !review.changed ||
+                  review.validation?.ok === false
+                }
                 onClick={apply}
               >
                 {applying ? 'Applying…' : 'Apply (backup created first)'}
@@ -210,9 +231,29 @@ export default function App() {
             restart it with <code>openclaw gateway restart</code> if a change doesn't take effect.
           </div>
           {review === 'loading' ? (
-            <p className="muted">Computing diff…</p>
+            <p className="muted">Computing diff and validating…</p>
           ) : review.changed ? (
-            <DiffView patch={review.patch} />
+            <>
+              {review.validation?.ok && (
+                <p className="small" style={{ color: 'var(--ok)' }}>
+                  ✓ Proposed config passes <code>openclaw config validate</code>
+                </p>
+              )}
+              {review.validation === null && (
+                <p className="small muted">
+                  openclaw CLI not found — skipping validation, review the diff carefully.
+                </p>
+              )}
+              {review.validation && review.validation.ok === false && (
+                <div className="callout danger">
+                  ✗ OpenClaw's validator rejected this config, so applying is disabled:
+                  <pre style={{ whiteSpace: 'pre-wrap', margin: '8px 0 0' }}>
+                    {review.validation.output}
+                  </pre>
+                </div>
+              )}
+              <DiffView patch={review.patch} />
+            </>
           ) : (
             <p className="muted">No effective changes — the proposed config is identical.</p>
           )}

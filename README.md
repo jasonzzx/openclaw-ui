@@ -11,6 +11,9 @@ configure it.
   Gateway → agents, with status, ports, and models. Click any box to jump to its settings.
 - **Agents** — create/edit/delete agents; set workspaces, primary models, fallbacks, and
   model aliases. Badges show which values are *inherited from defaults* vs *overridden*.
+- **Channels & Routing** — connect external messaging (Telegram first-class: bot token,
+  DM policy, allow list; other channels via generic editors), and bind each channel to
+  the agent that should answer it. Includes a step-by-step Telegram + BotFather guide.
 - **Gateway & Session** — network exposure (loopback / lan / tailnet / auto) as visual
   cards, auth token management, session DM scope, tools profile, and Tailscale settings —
   with safety warnings when a combination is risky (e.g. exposed bind with no auth).
@@ -69,7 +72,9 @@ don't expose it to the network.
 
 1. All edits happen on a **draft** in the browser — nothing touches disk until you click
    **Review & Apply**.
-2. The review modal shows the exact `openclaw.json` diff the server will write.
+2. The review modal shows the exact `openclaw.json` diff the server will write, and the
+   proposed config is checked with `openclaw config validate` (in a throwaway state dir)
+   — a config that OpenClaw itself rejects cannot be applied.
 3. Before every write (and every restore), the current file is snapshotted to
    `~/.openclaw/config-backups/openclaw-<timestamp>.json`.
 4. If the file changed on disk since you loaded it, the save is rejected with a conflict

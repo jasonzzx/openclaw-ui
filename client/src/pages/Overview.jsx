@@ -35,6 +35,16 @@ export default function Overview({ config, status, go }) {
           </div>
         </div>
         <div className="stat">
+          <div className="k">Channels</div>
+          <div className="v">
+            {Object.keys(config.channels || {}).length}
+            <span className="kv-inline">
+              {Object.values(config.channels || {}).filter((c) => c.enabled !== false).length}{' '}
+              enabled
+            </span>
+          </div>
+        </div>
+        <div className="stat">
           <div className="k">Tools profile</div>
           <div className="v">{config.tools?.profile || 'default'}</div>
         </div>
@@ -74,6 +84,14 @@ export default function Overview({ config, status, go }) {
         <Section title="🤖 Manage agents" subtitle="Create agents, set models and workspaces, choose the default.">
           <button className="btn" onClick={() => go('agents')}>
             Open Agents →
+          </button>
+        </Section>
+        <Section
+          title="✈️ Connect a chat app"
+          subtitle="Hook up Telegram & friends and route each channel to an agent."
+        >
+          <button className="btn" onClick={() => go('channels')}>
+            Open Channels →
           </button>
         </Section>
         <Section title="💬 Test an agent" subtitle="Send a real message through the Gateway and inspect the reply.">

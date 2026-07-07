@@ -15,6 +15,10 @@ export default function ArchDiagram({ config, status, onNavigate }) {
   const pluginCount = Object.keys(config?.plugins?.entries || {}).length;
   const toolsProfile = config?.tools?.profile || 'default';
   const up = status?.gateway?.up;
+  const channels = Object.entries(config?.channels || {});
+  const bindings = (config?.bindings || []).filter((b) => b.type === 'route');
+  const boundChannels = (agentId) =>
+    bindings.filter((b) => b.agentId === agentId).map((b) => b.match?.channel).filter(Boolean);
 
   const AH = 66; // agent box height
   const AGAP = 14;
@@ -58,22 +62,64 @@ export default function ArchDiagram({ config, status, onNavigate }) {
         </text>
 
         {/* channels */}
-        <rect className="diag-box" x="15" y={cy - 70} width="170" height="140" rx="10" />
-        <text className="diag-title" x="100" y={cy - 46} textAnchor="middle">
+        <rect
+          className="diag-box clickable"
+          x="15"
+          y={cy - 70}
+          width="170"
+          height="140"
+          rx="10"
+          onClick={() => onNavigate('channels')}
+        />
+        <text
+          className="diag-title"
+          x="100"
+          y={cy - 46}
+          textAnchor="middle"
+          style={{ pointerEvents: 'none' }}
+        >
           💬 Chat apps
         </text>
-        <text className="diag-text" x="100" y={cy - 22} textAnchor="middle">
-          WhatsApp · Telegram
-        </text>
-        <text className="diag-text" x="100" y={cy - 4} textAnchor="middle">
-          Discord · iMessage
-        </text>
-        <text className="diag-text" x="100" y={cy + 14} textAnchor="middle">
-          Slack · Signal · CLI…
-        </text>
-        <text className="diag-mono" x="100" y={cy + 44} textAnchor="middle">
-          your messages arrive here
-        </text>
+        {channels.length ? (
+          <>
+            {channels.slice(0, 4).map(([name, ch], i) => (
+              <text
+                key={name}
+                className="diag-text"
+                x="100"
+                y={cy - 22 + i * 18}
+                textAnchor="middle"
+                style={{ pointerEvents: 'none' }}
+              >
+                {ch.enabled !== false ? '●' : '○'} {trunc(name, 16)}
+              </text>
+            ))}
+            <text
+              className="diag-mono"
+              x="100"
+              y={cy + 54}
+              textAnchor="middle"
+              style={{ pointerEvents: 'none' }}
+            >
+              {channels.length > 4 ? `+${channels.length - 4} more · ` : ''}+ CLI / this UI
+            </text>
+          </>
+        ) : (
+          <>
+            <text className="diag-text" x="100" y={cy - 22} textAnchor="middle" style={{ pointerEvents: 'none' }}>
+              none configured yet
+            </text>
+            <text className="diag-text" x="100" y={cy - 4} textAnchor="middle" style={{ pointerEvents: 'none' }}>
+              (Telegram, WhatsApp,
+            </text>
+            <text className="diag-text" x="100" y={cy + 14} textAnchor="middle" style={{ pointerEvents: 'none' }}>
+              Discord, Slack…)
+            </text>
+            <text className="diag-mono" x="100" y={cy + 44} textAnchor="middle" style={{ pointerEvents: 'none' }}>
+              click to add one
+            </text>
+          </>
+        )}
 
         {/* channels -> gateway */}
         <line className="diag-arrow" x1="185" y1={cy} x2="343" y2={cy} />
@@ -113,15 +159,20 @@ export default function ArchDiagram({ config, status, onNavigate }) {
           routes each session to an agent
         </text>
 
-        {/* gateway -> agents */}
+        {/* gateway -> agents (labelled with routing bindings) */}
         {agents.map((a, i) => {
           const ay = agentOffset + i * (AH + AGAP) + AH / 2;
+          const bound = boundChannels(a.id);
+          const label = bound.length ? bound.join(', ') : a.default ? 'default route' : '';
           return (
-            <path
-              key={a.id}
-              className="diag-arrow"
-              d={`M570,${cy} C 622,${cy} 626,${ay} 673,${ay}`}
-            />
+            <g key={a.id}>
+              <path className="diag-arrow" d={`M570,${cy} C 622,${cy} 626,${ay} 673,${ay}`} />
+              {label && (
+                <text className="diag-mono" x="624" y={ay - 7} textAnchor="middle">
+                  {trunc(label, 18)}
+                </text>
+              )}
+            </g>
           );
         })}
 

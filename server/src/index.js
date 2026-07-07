@@ -12,7 +12,7 @@ import {
   readBackup,
   restoreBackup,
 } from './config-store.js';
-import { getVersion, probePort, runAgentTurn } from './openclaw.js';
+import { getVersion, probePort, runAgentTurn, validateConfig } from './openclaw.js';
 
 const app = express();
 app.use(express.json({ limit: '4mb' }));
@@ -55,7 +55,7 @@ app.get('/api/config', (_req, res) => {
   }
 });
 
-app.post('/api/config/preview', (req, res) => {
+app.post('/api/config/preview', async (req, res) => {
   try {
     const next = req.body?.next;
     if (!next || typeof next !== 'object') throw new Error('Missing "next" config object');
@@ -71,7 +71,9 @@ app.post('/api/config/preview', (req, res) => {
       undefined,
       { context: 3 }
     );
-    res.json({ changed: before !== after, patch });
+    const changed = before !== after;
+    const validation = changed ? await validateConfig(after) : { ok: true };
+    res.json({ changed, patch, validation });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
