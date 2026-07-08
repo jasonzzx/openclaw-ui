@@ -43,6 +43,26 @@ npm run dev
 - Client: http://localhost:5173 (Vite, hot reload)
 - API server: http://127.0.0.1:4177 (proxied under `/api`)
 
+## Desktop shortcut (macOS)
+
+```bash
+scripts/create-desktop-shortcut.sh
+```
+
+Builds a double-clickable **OpenClaw UI.app** (with a 🦞 icon) into `~/Applications`
+and links it from your Desktop. Double-clicking starts the production server if it
+isn't already running, then opens the UI in your default browser. Server output goes
+to `~/Library/Logs/openclaw-ui.log`; stop the server with
+`lsof -ti :4177 | xargs kill`.
+
+Notes:
+
+- The app is intentionally **not** placed on the Desktop itself: with iCloud
+  "Desktop & Documents" sync, app bundles on the Desktop can be evicted to the
+  cloud, which breaks them. The Desktop gets a symlink to the real app instead.
+- The app embeds the absolute path to this repo — if you move the repo, run the
+  script again to regenerate it.
+
 ## Production
 
 ```bash
