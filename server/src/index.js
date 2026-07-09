@@ -12,7 +12,15 @@ import {
   readBackup,
   restoreBackup,
 } from './config-store.js';
-import { getVersion, probePort, runAgentTurn, validateConfig } from './openclaw.js';
+import {
+  getVersion,
+  probePort,
+  runAgentTurn,
+  validateConfig,
+  getGatewayInfo,
+  startGateway,
+  stopGateway,
+} from './openclaw.js';
 
 const app = express();
 app.use(express.json({ limit: '4mb' }));
@@ -25,7 +33,7 @@ app.get('/api/status', async (_req, res) => {
     const { config, path: configPath, mtimeMs } = readConfig();
     const gw = config.gateway || {};
     const port = Number(gw.port || 18789);
-    const [version, gatewayUp] = await Promise.all([getVersion(), probePort(port)]);
+    const [version, gatewayInfo] = await Promise.all([getVersion(), getGatewayInfo(port)]);
     const agents = config.agents?.list || [];
     res.json({
       version,
@@ -34,7 +42,7 @@ app.get('/api/status', async (_req, res) => {
       agentCount: agents.length,
       defaultAgent: (agents.find((a) => a.default) || agents[0])?.id ?? null,
       gateway: {
-        up: gatewayUp,
+        ...gatewayInfo,
         port,
         mode: gw.mode ?? 'local',
         bind: gw.bind ?? 'loopback',
@@ -121,6 +129,26 @@ app.post('/api/backups/:name/restore', (req, res) => {
     res.json({ ok: true, backup, mtimeMs: fresh.mtimeMs, config: fresh.config });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/gateway/start', async (_req, res) => {
+  try {
+    const { config } = readConfig();
+    const port = Number(config.gateway?.port || 18789);
+    res.json(await startGateway(port));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/gateway/stop', async (_req, res) => {
+  try {
+    const { config } = readConfig();
+    const port = Number(config.gateway?.port || 18789);
+    res.json(await stopGateway(port));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 

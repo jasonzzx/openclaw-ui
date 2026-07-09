@@ -25,6 +25,9 @@ export default function Overview({ config, status, go }) {
           <div className="v">
             <StatusPill ok={!!status?.gateway?.up} />
             <span className="kv-inline mono">:{gw.port || 18789}</span>
+            <button className="btn ghost sm" style={{ marginLeft: 'auto' }} onClick={() => go('gateway')}>
+              {status?.gateway?.up ? 'Manage' : 'Start →'}
+            </button>
           </div>
         </div>
         <div className="stat">

@@ -138,7 +138,16 @@ export default function App() {
 
   if (!draft) return null;
 
-  const pageProps = { config: draft, saved, status, mutate, go: setPage, showToast, reload: loadConfig };
+  const pageProps = {
+    config: draft,
+    saved,
+    status,
+    mutate,
+    go: setPage,
+    showToast,
+    reload: loadConfig,
+    refreshStatus,
+  };
 
   return (
     <div className="app">

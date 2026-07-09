@@ -17,6 +17,10 @@ configure it.
 - **Gateway & Session** — network exposure (loopback / lan / tailnet / auto) as visual
   cards, auth token management, session DM scope, tools profile, and Tailscale settings —
   with safety warnings when a combination is risky (e.g. exposed bind with no auth).
+  Includes a **Start/Stop Gateway** control: if `openclaw gateway install` has set up a
+  launchd/systemd service, it's driven through that; otherwise Start spawns
+  `openclaw gateway run` as a tracked background process (stops if you log out — the UI
+  never installs a persistent service on its own).
 - **Plugins, Skills & Auth** — toggle plugins, understand plugins vs skills vs auth
   profiles, and see your provider credentials at a glance (secrets are never shown).
 - **Chat Console** — send a real turn to any agent through the Gateway

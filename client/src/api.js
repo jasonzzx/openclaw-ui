@@ -21,3 +21,5 @@ export const getBackups = () => request('/api/backups');
 export const restoreBackup = (name) => post(`/api/backups/${encodeURIComponent(name)}/restore`, {});
 export const sendChat = (agentId, message, thinking) =>
   post('/api/chat', { agentId, message, thinking });
+export const startGateway = () => post('/api/gateway/start', {});
+export const stopGateway = () => post('/api/gateway/stop', {});

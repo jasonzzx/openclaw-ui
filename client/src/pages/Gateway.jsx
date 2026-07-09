@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { startGateway, stopGateway } from '../api.js';
 import { Section, Field, Learn, Callout, Toggle, StatusPill } from '../components/ui.jsx';
 
 const BIND_MODES = [
@@ -35,9 +36,62 @@ const DM_SCOPES = [
   ['per-account-channel-peer', 'per-account-channel-peer — also split by your account'],
 ];
 
-export default function Gateway({ config, mutate, status }) {
+export default function Gateway({ config, mutate, status, refreshStatus, showToast }) {
   const gw = config.gateway || {};
   const [showToken, setShowToken] = useState(false);
+  const [pending, setPending] = useState(null); // 'start' | 'stop' | null
+
+  const gwStatus = status?.gateway || {};
+  const up = !!gwStatus.up;
+
+  const doStart = async () => {
+    setPending('start');
+    try {
+      const res = await startGateway();
+      if (res.ok) {
+        showToast({
+          kind: 'ok',
+          title: res.alreadyRunning ? 'Gateway already running' : '✓ Gateway started',
+          detail:
+            res.mode === 'foreground'
+              ? `Running as a background process (pid ${res.pid}). Logs: ~/.openclaw/ui-gateway.log`
+              : res.mode === 'service'
+                ? 'Started via the installed launchd/systemd service.'
+                : undefined,
+        });
+      } else {
+        showToast({ kind: 'error', title: 'Could not start Gateway', detail: res.error || res.output });
+      }
+    } catch (err) {
+      showToast({ kind: 'error', title: 'Could not start Gateway', detail: err.message });
+    } finally {
+      setPending(null);
+      refreshStatus();
+    }
+  };
+
+  const doStop = async () => {
+    if (
+      !window.confirm(
+        'Stop the Gateway? Every connected chat channel will go offline until it starts again.'
+      )
+    )
+      return;
+    setPending('stop');
+    try {
+      const res = await stopGateway();
+      if (res.ok) {
+        showToast({ kind: 'ok', title: res.alreadyStopped ? 'Gateway already stopped' : '✓ Gateway stopped' });
+      } else {
+        showToast({ kind: 'error', title: 'Could not stop Gateway', detail: res.error || res.output });
+      }
+    } catch (err) {
+      showToast({ kind: 'error', title: 'Could not stop Gateway', detail: err.message });
+    } finally {
+      setPending(null);
+      refreshStatus();
+    }
+  };
 
   const setGw = (fn) =>
     mutate((c) => {
@@ -62,18 +116,67 @@ export default function Gateway({ config, mutate, status }) {
       <h1 className="page-title">Gateway & Session</h1>
       <p className="page-desc">
         The Gateway is OpenClaw's always-on core: one WebSocket server that owns your channels,
-        agents, and scheduled jobs. Currently{' '}
-        <StatusPill ok={!!status?.gateway?.up} textOk="running" textBad="not running" /> on port{' '}
-        <code>{gw.port || 18789}</code>.
+        agents, and scheduled jobs. Currently <StatusPill ok={up} textOk="running" textBad="not running" />{' '}
+        on port <code>{gw.port || 18789}</code>.
       </p>
 
-      {!status?.gateway?.up && (
-        <Callout kind="warn">
-          ⚡ The Gateway isn't running. Start it in a terminal with{' '}
-          <code>openclaw gateway run</code> (foreground) or install it as a background service with{' '}
-          <code>openclaw gateway install</code> then <code>openclaw gateway start</code>.
-        </Callout>
-      )}
+      <Section title="Gateway control">
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+          <div className="row">
+            <StatusPill ok={up} textOk="running" textBad="stopped" />
+            {gwStatus.serviceInstalled && (
+              <span className="badge blue">
+                {gwStatus.serviceLoaded ? 'system service · loaded' : 'system service · installed'}
+              </span>
+            )}
+            {!gwStatus.serviceInstalled && gwStatus.managedPid && (
+              <span className="badge">background process · pid {gwStatus.managedPid}</span>
+            )}
+            {!gwStatus.serviceInstalled && up && !gwStatus.managedPid && (
+              <span className="badge warn">started outside this UI</span>
+            )}
+          </div>
+          <div className="row">
+            {!up ? (
+              <button className="btn primary" disabled={pending === 'start'} onClick={doStart}>
+                {pending === 'start' ? 'Starting…' : '▶ Start Gateway'}
+              </button>
+            ) : (
+              <button
+                className="btn danger"
+                disabled={pending === 'stop' || (up && !gwStatus.serviceInstalled && !gwStatus.managedPid)}
+                onClick={doStop}
+              >
+                {pending === 'stop' ? 'Stopping…' : '■ Stop Gateway'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!gwStatus.serviceInstalled && (
+          <p className="field-hint" style={{ marginTop: 10 }}>
+            No system service is installed, so <b>Start</b> runs the Gateway as a background
+            process for this login session — it stops if you log out or restart your Mac. To have
+            it start automatically, run <code>openclaw gateway install</code> in a terminal once.
+            Logs: <code>~/.openclaw/ui-gateway.log</code>.
+          </p>
+        )}
+        {up && !gwStatus.serviceInstalled && !gwStatus.managedPid && (
+          <Callout kind="warn">
+            This Gateway was started outside this UI (not a tracked background process or
+            installed service), so <b>Stop</b> is disabled here to avoid killing the wrong
+            process. Stop it from wherever you started it, e.g.{' '}
+            <code>lsof -ti :{gw.port || 18789} | xargs kill</code>.
+          </Callout>
+        )}
+
+        {!up && (
+          <Callout kind="warn">
+            ⚡ The Gateway isn't running — channels are offline and chat turns will fail until you
+            start it.
+          </Callout>
+        )}
+      </Section>
 
       <Learn title="What the Gateway actually does">
         <p>

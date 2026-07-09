@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 // OPENCLAW_HOME lets tests (or non-default installs) point at another state dir.
-const HOME = process.env.OPENCLAW_HOME || path.join(os.homedir(), '.openclaw');
+export const HOME = process.env.OPENCLAW_HOME || path.join(os.homedir(), '.openclaw');
 export const CONFIG_PATH = path.join(HOME, 'openclaw.json');
 export const BACKUP_DIR = path.join(HOME, 'config-backups');
 
